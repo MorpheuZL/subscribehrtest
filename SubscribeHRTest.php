@@ -1,5 +1,6 @@
 <?php
 require_once "Helpers.php";
+
 class SubscribeHrTest {
 
   private $csvData = [];
@@ -64,11 +65,15 @@ class SubscribeHrTest {
               $latency = 0;
               $checkDevice = '';
               $overLatency = false;
+
+              //Loop forward through CSV Data checking if connections match input.
+
               for($i=0; $i<count($this->csvData); $i++){
                 $doDeviceCheck = $this->doDeviceConnectionCheck($output, $checkDevice, $latency, $device1, $device2, $i, false);
                 if($doDeviceCheck===true){
 
                   if($latency > $max_latency){
+                    //connections exist but the latency in longer than the max latency given by the user. Below allows a further check.
                     $overLatency = true;
                     $this->usedKeys[] = $this->firstKey;
                     $checkDevice = '';
@@ -85,16 +90,20 @@ class SubscribeHrTest {
                 }
               }
 
+              //below allows a further check if a previous connection match returned a latency longer than the inputted latency by the user.
+
               if($overLatency==true){
                 $this->resetVals($output, $checkDevice, $latency, $device1, $device2,$overLatency,$inputData);
                 $this->checkOverLatency($output, $checkDevice, $latency, $max_latency, $device1, $device2, false);
               }
 
-
+              //If the forward iteration returns no results, we attempt to iterate backwards through the CSV data.
               if($checkDevice == ''){
                 $this->resetVals($output, $checkDevice, $latency, $device1, $device2,$overLatency,$inputData);
                 $this->usedKeys = [];
                 $this->firstKey = null;
+                //Loop backwards through CSV Data checking if connections match input.
+
                 for($i=max(array_keys($this->csvData)); $i>=0; $i--){
                   $doDeviceCheck = $this->doDeviceConnectionCheck($output, $checkDevice, $latency, $device1, $device2, $i, true);
                   if($doDeviceCheck===true){
@@ -124,7 +133,7 @@ class SubscribeHrTest {
 
               }
               $output = ($checkDevice == '') ? "Path Not Found" : $output;
-              echo $output. PHP_EOL;
+              echo "Connection: ".$output. PHP_EOL;
               $this->waitForUser();
             } else {
               echo "Latency must be numeric and greater than 0.".PHP_EOL;
@@ -144,7 +153,7 @@ class SubscribeHrTest {
 
   private static function checkValidDevices($device){
     if(in_array(trim($device),self::$devices))
-    return true;
+      return true;
 
     return false;
   }
