@@ -1,0 +1,7 @@
+DeviceFrom, DeviceTo, Latency in Milliseconds
+A,B,10
+A,C,20
+B,D,100
+C,D,30
+D,E,10
+E,F,1000
