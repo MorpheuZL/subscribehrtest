@@ -4,6 +4,8 @@ class SubscribeHrTest {
 
   private $csvData = [];
   private static $devices = ['A','B','C','D','E','F'];
+  private $usedKeys = [];
+  private $firstKey = null;
 
   public function __construct($file){
     if($file==""){
@@ -37,6 +39,8 @@ class SubscribeHrTest {
   }
 
   private function handleUserInput($input){
+    $this->usedKeys = [];
+    $this->firstKey = null;
     if(Helpers::cleanInput($input) == 'yes' || Helpers::cleanInput($input) == ''){
       $this->runTest();
     } else {
@@ -59,42 +63,79 @@ class SubscribeHrTest {
               $output .= $device1;
               $latency = 0;
               $checkDevice = '';
+              $overLatency = false;
               for($i=0; $i<count($this->csvData); $i++){
-                if($this->doDeviceConnectionCheck($output, $checkDevice, $latency, $device1, $device2, $i)===true){
-                  break;
-                }
-                if($latency > $max_latency){break;}
-              }
-              echo $checkDevice."-----------".PHP_EOL;
-              if($checkDevice == ''){
-                $device1 = $inputData[0];
-                $device2 = $inputData[1];
-                $max_latency = $inputData[2];
+                $doDeviceCheck = $this->doDeviceConnectionCheck($output, $checkDevice, $latency, $device1, $device2, $i, false);
+                if($doDeviceCheck===true){
 
-                $output = '';
-                $output .= $device1;
-                $latency = 0;
-                $checkDevice = '';
-                for($i=count($this->csvData)-1; $i>0; $i++){
-                  if($this->doDeviceConnectionCheck($output, $checkDevice, $latency, $device1, $device2, $i)===true){
+                  if($latency > $max_latency){
+                    $overLatency = true;
+                    $this->usedKeys[] = $this->firstKey;
+                    $checkDevice = '';
                     break;
                   }
-                  if($latency > $max_latency){break;}
+
+                  break;
+                } else if($doDeviceCheck==='continue'){
+                  continue;
+                }
+                if($latency > $max_latency){
+                  $checkDevice = '';
+                  break;
                 }
               }
-              $output = $checkDevice == '' ? "Path Not Found" : $output;
-              print $output. PHP_EOL;
 
+              if($overLatency==true){
+                $this->resetVals($output, $checkDevice, $latency, $device1, $device2,$overLatency,$inputData);
+                $this->checkOverLatency($output, $checkDevice, $latency, $max_latency, $device1, $device2, false);
+              }
+
+
+              if($checkDevice == ''){
+                $this->resetVals($output, $checkDevice, $latency, $device1, $device2,$overLatency,$inputData);
+                $this->usedKeys = [];
+                $this->firstKey = null;
+                for($i=max(array_keys($this->csvData)); $i>=0; $i--){
+                  $doDeviceCheck = $this->doDeviceConnectionCheck($output, $checkDevice, $latency, $device1, $device2, $i, true);
+                  if($doDeviceCheck===true){
+
+                    if($latency > $max_latency){
+                      $overLatency = true;
+                      $this->usedKeys[] = $this->firstKey;
+                      $checkDevice = '';
+                      break;
+                    }
+
+                    break;
+                  } else if($doDeviceCheck==='continue'){
+
+                    continue;
+                  }
+                  if($latency > $max_latency){
+                    $checkDevice = '';
+                    break;
+                  }
+                }
+
+                if($overLatency==true){
+                  $this->resetVals($output, $checkDevice, $latency, $device1, $device2,$overLatency,$inputData);
+                  $this->checkOverLatency($output, $checkDevice, $latency,$max_latency, $device1, $device2, true);
+                }
+
+              }
+              $output = ($checkDevice == '') ? "Path Not Found" : $output;
+              echo $output. PHP_EOL;
+              $this->waitForUser();
             } else {
               echo "Latency must be numeric and greater than 0.".PHP_EOL;
               exit();
             }
           } else {
-            echo "Incorrect second device definition.".PHP_EOL;
+            echo "Incorrect second device definition. Please use A to F.".PHP_EOL;
             exit();
           }
         } else {
-          echo "Incorrect first device definition.".PHP_EOL;
+          echo "Incorrect first device definition. Please use A to F.".PHP_EOL;
           exit();
         }
       }
@@ -108,19 +149,57 @@ class SubscribeHrTest {
     return false;
   }
 
-  private function doDeviceConnectionCheck(& $output, & $checkDevice, & $latency, & $device1,& $device2, $i){
-    if($device1 == $this->csvData[$i][0]){
+  private function resetVals(& $output, & $checkDevice, & $latency, & $device1,& $device2,& $overLatency,$inputData){
+    $device1 = $inputData[0];
+    $device2 = $inputData[1];
+
+    $output = '';
+    $output .= $device1;
+    $latency = 0;
+    $checkDevice = '';
+    $overLatency = false;
+  }
+
+  private function doDeviceConnectionCheck(& $output, & $checkDevice, & $latency, & $device1,& $device2, $i, $reverse){
+
+    if($reverse==true){
+      $firstDevice = 1;
+      $secondDevice = 0;
+    } else {
+      $firstDevice = 0;
+      $secondDevice = 1;
+    }
+
+    if($device1 == $this->csvData[$i][$firstDevice]){
+      $this->firstKey = (is_null($this->firstKey))? $i : $this->firstKey;
+
+      if(in_array($i,$this->usedKeys))
+      return 'continue';
+
       $latency = $latency + $this->csvData[$i][2];
-      if($this->csvData[$i][1] == $device2){
-        $output .= ' => '.$this->csvData[$i][1].' => '.$latency;
-        $checkDevice = $this->csvData[$i][1];
+      if($this->csvData[$i][$secondDevice] == $device2){
+        $output .= ' => '.$this->csvData[$i][$secondDevice].' => '.$latency;
+        $checkDevice = $this->csvData[$i][$secondDevice];
         return true;
       }else{
-        $output .= ' => '.$this->csvData[$i][1].' => ';
+        $output .= ' => '.$this->csvData[$i][$secondDevice];
       }
-      $device1 = $this->csvData[$i][1];
+      $device1 = $this->csvData[$i][$secondDevice];
     }
   }
 
-
+  private function checkOverLatency(& $output, & $checkDevice, $latency, $max_latency, $device1, $device2, $reverse){
+    for($i=0; $i<count($this->csvData); $i++){
+      if($this->doDeviceConnectionCheck($output, $checkDevice, $latency, $device1, $device2, $i, $reverse)===true){
+        if($latency > $max_latency){
+          $checkDevice = '';
+          break;
+        }
+        break;
+      }
+      if($latency > $max_latency){
+        break;
+      }
+    }
+  }
 }
