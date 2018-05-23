@@ -14,6 +14,11 @@ class SubscribeHrTest {
       exit();
     }
 
+    $this->handleCSVUpload($file);
+
+  }
+
+  private function handleCSVUpload($file){
     echo "File Uploaded: ".$file.PHP_EOL;
 
     $this->csvData = array_map('str_getcsv', file($file));

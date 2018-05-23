@@ -17,3 +17,5 @@ C => A => 20
 Check other devices? (Yes/Quit):
 ```
 Typing **Quit** will quit the program and pressing **Enter** or typing **Yes** will allow the user to test other device connections.
+
+Typing any other commands including incorrect device references (**eg: Y T 600**) will output a message and quit the program.
