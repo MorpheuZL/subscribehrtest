@@ -1,6 +1,6 @@
 # Subscribe HR DevTest
 
-##Simple command line Point to Point connection checker.##
+## Simple command line Point to Point connection checker.
 
 Usage:
 ```
